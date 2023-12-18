@@ -1,0 +1,6 @@
+max_length: 750
+do_lora: False
+dataset_name: 'wikisql' #spider
+max_steps: -1
+epoch: 2
+batch_size: 1
