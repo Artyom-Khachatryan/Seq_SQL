@@ -13,7 +13,7 @@ class Seq2SQLDataset(Dataset):
         self.max_length = max_length
         self.ignore_id = ignore_id
         if self.dataset_name == 'wikisql':
-            self.dataset = load_dataset('wikisql', split = 'train')
+            self.dataset = load_dataset('wikisql', split = self.split)
             self.list_dataset = []
             for i in self.dataset:
                 self.list_dataset.append(i)
@@ -22,7 +22,10 @@ class Seq2SQLDataset(Dataset):
             self.dataset = load_dataset('spider', split = self.split)
             self.list_dataset = []
             for i in self.dataset:
-                conn = sqlite3.connect(f"vle/database/{i['db_id']}/{i['db_id']}.sqlite")
+                if self.split == 'train':
+                    conn = sqlite3.connect(f"spid/database/{i['db_id']}/{i['db_id']}.sqlite")
+                if self.split == 'validation':
+                    conn = sqlite3.connect(f"spid/test_database/{i['db_id']}/{i['db_id']}.sqlite")
 
                 cursor = conn.cursor()
 
@@ -58,26 +61,20 @@ class Seq2SQLDataset(Dataset):
         if self.dataset_name == 'wikisql':
             question = self.list_dataset[index]['question']
             sql = self.list_dataset[index]['sql']['human_readable']
-            if self.split == 'train':
-
-                instruction = f"I have following columns in my SQL table: {self.list_dataset[index]['table']['header']}, which have rows like this {self.list_dataset[index]['table']['rows'][0]}, table_name=table. Generate SQL query for this question` " + f'{question} '
-                
-                input_text = instruction + '</pet>' + ' ' + sql
-                
-                input_ids = self.tokenizer(input_text, max_length = self.max_length, padding="max_length", return_tensors = 'pt', truncation = True)['input_ids'].squeeze(0)
-                labels = input_ids.clone()
-                pet_where = self.tokenizer.encode('</pet>')[1]
-                pet_index = int(torch.where(labels==pet_where)[0])
-                labels[0: pet_index+1] = self.ignore_id
-                labels[labels==self.tokenizer.pad_token_id]= self.ignore_id
-                a = {'input_ids': input_ids, 'labels': labels}
-                return a
-            else:
-                question += '</pet>'
-                input_ids= self.tokenizer(question, return_tensors = 'pt', truncation = True)['input_ids'].squeeze(0)
-                labels = self.tokenizer(sql, return_tensors = 'pt')['input_ids'].squeeze(0)[1: ]
-                a = {'input_ids': input_ids, 'labels': labels}
-                return a
+            
+            instruction = f"I have following columns in my SQL table: {self.list_dataset[index]['table']['header']}, which have rows like this {self.list_dataset[index]['table']['rows'][0]}, table_name=table. Generate SQL query for this question: " + f'{question}'
+            
+            input_text = instruction + '</pet>' + sql + '</s>'
+            
+            input_ids = self.tokenizer(input_text, max_length = self.max_length, padding="max_length", return_tensors = 'pt', truncation = True)['input_ids'].squeeze(0)
+            labels = input_ids.clone()
+            pet_where = self.tokenizer.encode('</pet>')[1]
+            pet_index = int(torch.where(labels==pet_where)[0])
+            labels[0: pet_index+1] = self.ignore_id
+            labels[labels==self.tokenizer.pad_token_id]= self.ignore_id
+            a = {'input_ids': input_ids, 'labels': labels}
+            return a
+            
                 
         elif self.dataset_name == 'spider':
 
@@ -85,8 +82,8 @@ class Seq2SQLDataset(Dataset):
             sql = self.dataset[index]['query']
 
             if self.split == 'train':
-                instruction = f"I have SQL database: {self.list_dataset[index]['db_id']}s. I have list of dictionarys, each of them have two keys 'table' and 'columns'(table and corresponding columns): {self.list_dataset[index]['table']}.Generate SQL query for this question: {question} "
-                input_text = instruction + '</pet>' + ' ' +sql
+                instruction = f"I have following SQL database: {self.list_dataset[index]['db_id']}s. Wher I have list of dictionarys, each of them I have two keys 'table' and 'columns'(table and corresponding columns): {self.list_dataset[index]['table']}.Generate SQL query for this question: {question}"
+                input_text = instruction + '</pet>' + sql + '</s>'
                 input_ids = self.tokenizer(input_text, max_length = self.max_length, padding="max_length", return_tensors = 'pt', truncation = True)['input_ids'].squeeze(0)
             
                 labels = input_ids.clone()
