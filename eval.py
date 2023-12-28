@@ -11,7 +11,7 @@ from sconf import Config
 
 #"meta-llama/Llama-2-7b-chat-hf"
 
-model = AutoModelForCausalLM.from_pretrained('vzgo/checkpoint-19000', token="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", load_in_8bit=True)
+model = AutoModelForCausalLM.from_pretrained('vzgo/checkpoint-2000', token="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", load_in_8bit=True)
 model.eval()
 model.resize_token_embeddings(32002)
 
@@ -35,7 +35,7 @@ val_dataset = Seq2SQLDataset(
     dataset_name=config.dataset_name,
     max_length=config.max_length,
     tokenizer = tokenizer,
-    split = 'validation[:2%]',
+    split = 'validation[:10%]',
     )
 import warnings
 
@@ -132,6 +132,8 @@ for i in val_dataset:
     output = tokenizer.decode(output)
     d[f'{k}'] = output
     k+=1
+    if k ==134:
+        break
     
-with open("val_jsons.json", "w") as outfile: 
+with open("val_jsons_sp1.json", "w") as outfile: 
     json.dump(d, outfile)
